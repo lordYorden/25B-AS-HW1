@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Class25B-AS-HW1</string>
+    <string name="biometric">Biometric</string>
+    <string name="auth">Auth</string>
+    <string name="flashlight">Flashlight</string>
+    <string name="step_count">Step Count</string>
+    <string name="rotation_lock">Rotation Lock</string>
+    <string name="whatsapp">Whatsapp</string>
+</resources>
