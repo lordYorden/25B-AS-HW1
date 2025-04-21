@@ -6,4 +6,6 @@
     <string name="step_count">Step Count</string>
     <string name="rotation_lock">Rotation Lock</string>
     <string name="whatsapp">Whatsapp</string>
+    <string name="pip_control_permission_description">Allows an application to control Picture-in-Picture mode.</string>
+    <string name="pip_turn_on">turn on</string>
 </resources>

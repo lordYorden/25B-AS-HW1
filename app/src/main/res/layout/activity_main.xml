@@ -11,6 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/auth"
+        android:id="@+id/lbl_title"
         android:textStyle="bold"
         android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"
@@ -20,6 +21,7 @@
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:id="@+id/llc_switches"
         android:orientation="vertical"
         android:layout_centerInParent="true">
 

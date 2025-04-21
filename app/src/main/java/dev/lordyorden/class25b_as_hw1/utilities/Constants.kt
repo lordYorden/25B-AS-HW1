@@ -14,4 +14,11 @@ class Constants {
         const val NAME :String = "com.whatsapp"
     }
 
+    object Pip{
+        const val ACTION_PIP = "dev.lordyorden.class25b_as_hw1.action.PIP"
+        const val EXTRA_CONTROL_STATE = "switch_state"
+        const val CONTROL_STATE_ON = 1
+        const val CONTROL_STATE_OFF = 0
+    }
+
 }
