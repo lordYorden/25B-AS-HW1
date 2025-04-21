@@ -9,4 +9,5 @@
     <string name="pip_control_permission_description">Allows an application to control Picture-in-Picture mode.</string>
     <string name="pip_turn_on">turn on</string>
     <string name="pip_otp">Pip OTP</string>
+    <string name="auth_complete">Auth complete now login!</string>
 </resources>

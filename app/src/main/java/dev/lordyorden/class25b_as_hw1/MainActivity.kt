@@ -3,6 +3,7 @@ package dev.lordyorden.class25b_as_hw1
 import android.Manifest
 import android.app.PictureInPictureParams
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -46,13 +47,14 @@ class MainActivity() : AppCompatActivity() {
     }
 
     private lateinit var stepListener: SensorEventListener
+    private var stepCount: Long = 0L
+
     private lateinit var passGen: HmacOneTimePasswordGenerator
     private var counter: Long = 0L
-
-    private var stepCount: Long = 0L
     private var isPip = false
+
     private val isDoneAuth
-        get() = binding.stepsMs.isChecked and binding.bioMs.isChecked and binding.flashlightMs.isChecked and binding.rotationMs.isChecked and binding.hasAppMs.isChecked
+        get() = binding.stepsMs.isChecked and binding.bioMs.isChecked and binding.flashlightMs.isChecked and binding.rotationMs.isChecked and binding.hasAppMs.isChecked and binding.pipOtpMs.isChecked
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,8 +97,6 @@ class MainActivity() : AppCompatActivity() {
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (isInPictureInPictureMode) {
-            // Hide in-app buttons. They cannot be interacted in the picture-in-picture mode, and
-            // their features are provided as the action icons.
             binding.llcSwitches.visibility = View.GONE
             isPip = true
             binding.lblTitle.text = generateNewPinCode()
@@ -127,7 +127,7 @@ class MainActivity() : AppCompatActivity() {
 
     private fun initViews() {
 
-        updatePictureInPictureParams()
+        setupAutoPipOnExit()
         configOtp()
 
         binding.bioMs.setOnCheckedChangeListener { _, isChecked ->
@@ -261,6 +261,9 @@ class MainActivity() : AppCompatActivity() {
     private fun checkDone() {
         if(isDoneAuth){
             Toast.makeText(this, "Auth Complete moving on!", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LoginActivity::class.java)
+            startActivity(intent)
+            finish()
         }
     }
 
@@ -361,24 +364,15 @@ class MainActivity() : AppCompatActivity() {
         }
     }
 
-    private fun updatePictureInPictureParams(): PictureInPictureParams {
-        // Calculate the aspect ratio of the PiP screen.
-        //val aspectRatio = Rational(binding.pipLayout.layoutParams.width, binding.pipLayout.layoutParams.height)
-        // The movie view turns into the picture-in-picture mode.
+    private fun setupAutoPipOnExit(): PictureInPictureParams {
         val visibleRect = Rect()
         binding.lblTitle.getGlobalVisibleRect(visibleRect)
 
         val params = PictureInPictureParams.Builder()
             .setAspectRatio(Rational(16, 9))
-            // Specify the portion of the screen that turns into the picture-in-picture mode.
-            // This makes the transition animation smoother.
             .setSourceRectHint(visibleRect)
             .setSeamlessResizeEnabled(false)
-            // Turn the screen into the picture-in-picture mode if it's hidden by the "Home" button.
             .setAutoEnterEnabled(true)
-
-        // The screen automatically turns into the picture-in-picture mode when it is hidden
-        // by the "Home" button.
         params.setAutoEnterEnabled(true)
         return params.build().also {
             setPictureInPictureParams(it)
@@ -391,6 +385,6 @@ class MainActivity() : AppCompatActivity() {
     }
 
     private fun minimize() {
-        enterPictureInPictureMode(updatePictureInPictureParams())
+        enterPictureInPictureMode(setupAutoPipOnExit())
     }
 }
