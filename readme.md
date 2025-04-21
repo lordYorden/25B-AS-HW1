@@ -15,6 +15,7 @@ login screen if not all the conditions are met.
 - when the user enter pip mode, the app will generate a random OTP and display it.
 ![otp](./docs/otp.png)
 - the user can enter the OTP in the app to unlock the login screen
+
 ![otpi](./docs/opt-input.png)
 
 ### OPT
