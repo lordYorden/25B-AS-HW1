@@ -1,17 +1,11 @@
 package dev.lordyorden.class25b_as_hw1
 
 import android.Manifest
-import android.app.PendingIntent
 import android.app.PictureInPictureParams
-import android.app.PictureInPictureUiState
-import android.app.RemoteAction
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Rect
-import android.graphics.drawable.Icon
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -21,7 +15,6 @@ import android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDEN
 import android.hardware.biometrics.BiometricPrompt
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
-import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
 import android.provider.Settings
@@ -29,17 +22,14 @@ import android.util.Log
 import android.util.Rational
 import android.view.View
 import android.widget.Toast
-import androidx.activity.viewModels
-import androidx.annotation.DrawableRes
-import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModel
 import dev.lordyorden.class25b_as_hw1.databinding.ActivityMainBinding
 import dev.lordyorden.class25b_as_hw1.utilities.Constants
+import dev.turingcomplete.kotlinonetimepassword.HmacAlgorithm
+import dev.turingcomplete.kotlinonetimepassword.HmacOneTimePasswordConfig
+import dev.turingcomplete.kotlinonetimepassword.HmacOneTimePasswordGenerator
+import java.util.UUID
 
 
 class MainActivity() : AppCompatActivity() {
@@ -55,9 +45,10 @@ class MainActivity() : AppCompatActivity() {
         getSystemService(Context.CAMERA_SERVICE) as CameraManager
     }
 
-    private val pipVm: SwitchViewModel by viewModels()
-
     private lateinit var stepListener: SensorEventListener
+    private lateinit var passGen: HmacOneTimePasswordGenerator
+    private var counter: Long = 0L
+
     private var stepCount: Long = 0L
     private var isPip = false
     private val isDoneAuth
@@ -65,15 +56,6 @@ class MainActivity() : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        registerReceiver(
-            broadcastReceiver,
-            IntentFilter().apply {
-                addAction(Constants.Pip.ACTION_PIP)
-            },
-            RECEIVER_EXPORTED
-        )
-
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -107,42 +89,46 @@ class MainActivity() : AppCompatActivity() {
         registerStepListener()
     }
 
-
-    @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-    override fun onPictureInPictureUiStateChanged(pipState: PictureInPictureUiState) {
-        super.onPictureInPictureUiStateChanged(pipState)
-        if (pipState.isTransitioningToPip) {
-            Toast.makeText(this, "pip test", Toast.LENGTH_SHORT).show()
-            binding.lblTitle.visibility = View.GONE
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (isInPictureInPictureMode) {
+            // Hide in-app buttons. They cannot be interacted in the picture-in-picture mode, and
+            // their features are provided as the action icons.
+            binding.llcSwitches.visibility = View.GONE
             isPip = true
+            binding.lblTitle.text = generateNewPinCode()
+        } else {
+            binding.llcSwitches.visibility = View.VISIBLE
+            isPip = false
+            binding.lblTitle.text = getString(R.string.auth)
         }
     }
 
-    private val broadcastReceiver = MyReceiver()
+    private fun generateNewPinCode(): String {
+        return passGen.generate(counter++)
+    }
 
+    private fun configOtp(){
+        val config = HmacOneTimePasswordConfig(codeDigits = Constants.OTP.OTP_LENGTH,
+            hmacAlgorithm = HmacAlgorithm.SHA1)
+
+        val secret = if (Constants.OTP.AUTO_GENERATE_SECRET) {
+            UUID.randomUUID().toString()
+        } else {
+            Constants.OTP.OTP_SECRET
+        }
+
+        passGen = HmacOneTimePasswordGenerator(secret.toByteArray(), config)
+        counter = 0
+    }
 
     private fun initViews() {
 
         updatePictureInPictureParams()
-
-        val filter = IntentFilter().apply {
-            //addAction(Constants.Pip.ACTION_PIP)
-        }
-
-
-        Log.e("RECEIVER", "TRY registered")
-
-//        broadcastReceiver.callback = object : BroadcastReceiverCallback{
-//            override fun onPipSwitchOn(context: Context?) {
-//                Toast.makeText(context, "test on main", Toast.LENGTH_SHORT).show()
-//                binding.stepsMs.isChecked = true
-//            }
-//
-//            override fun onPipSwitchOff(context: Context?) {
-//                Toast.makeText(context, "test off main", Toast.LENGTH_SHORT).show()
-//                binding.stepsMs.isChecked = false
-//            }
-//        }
+        configOtp()
 
         binding.bioMs.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked)
@@ -169,12 +155,44 @@ class MainActivity() : AppCompatActivity() {
 
         binding.hasAppMs.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
-                checkHasApp(Constants.AppExist.NAME)
+                checkHasApp()
+            }
+        }
+
+        binding.pipOtpMs.setOnCheckedChangeListener{ _, ischecked ->
+            if (ischecked){
+                getAndCheckOtp()
             }
         }
     }
 
-    private fun checkHasApp(packageName: String){
+    private fun getAndCheckOtp() {
+        val builder = android.app.AlertDialog.Builder(this)
+        builder.setTitle("Enter OTP")
+        val input = android.widget.EditText(this)
+        input.inputType = android.text.InputType.TYPE_CLASS_TEXT
+        builder.setView(input)
+        builder.setPositiveButton("OK") { dialog, _ ->
+            val otp = input.text.toString()
+            if (passGen.isValid(otp, counter - 1)) {
+                Toast.makeText(this, "OTP is correct! Auth successful!", Toast.LENGTH_SHORT).show()
+                checkDone()
+            } else {
+                Toast.makeText(this, "OTP is incorrect! Try again!", Toast.LENGTH_SHORT).show()
+                switchOff()
+            }
+            dialog.dismiss()
+        }
+        builder.setNegativeButton("Cancel") { dialog, _ ->
+            Toast.makeText(this, "OTP is canceled!", Toast.LENGTH_SHORT).show()
+            switchOff()
+            dialog.cancel()
+        }
+        builder.show()
+
+    }
+
+    private fun checkHasApp(packageName: String = Constants.AppExist.NAME) {
 
         if (isAppInstalled(packageName)){
             Toast.makeText(this, "$packageName is installed! Auth successful!", Toast.LENGTH_SHORT).show()
@@ -331,6 +349,7 @@ class MainActivity() : AppCompatActivity() {
         binding.stepsMs.isChecked= false
         binding.rotationMs.isChecked = false
         binding.hasAppMs.isChecked = false
+        binding.pipOtpMs.isChecked = false
     }
 
     private fun isAppInstalled(packageName: String): Boolean{
@@ -344,36 +363,19 @@ class MainActivity() : AppCompatActivity() {
 
     private fun updatePictureInPictureParams(): PictureInPictureParams {
         // Calculate the aspect ratio of the PiP screen.
-        val aspectRatio = Rational(4,3)//Rational(binding.main.width, binding.main.height)
+        //val aspectRatio = Rational(binding.pipLayout.layoutParams.width, binding.pipLayout.layoutParams.height)
         // The movie view turns into the picture-in-picture mode.
         val visibleRect = Rect()
-        binding.llcSwitches.getGlobalVisibleRect(visibleRect)
-
-        val intent = Intent(this, MainActivity::class.java)
-        intent.putExtra("isPip", isPip)
+        binding.lblTitle.getGlobalVisibleRect(visibleRect)
 
         val params = PictureInPictureParams.Builder()
-            .setAspectRatio(aspectRatio)
-            .setSeamlessResizeEnabled(true)
-
-            .setActions(listOf(
-                createRemoteAction(
-                    R.drawable.ic_toggle_on,
-                    R.string.pip_turn_on,
-                    0,
-                    Constants.Pip.CONTROL_STATE_ON
-                ),
-                createRemoteAction(
-                    R.drawable.ic_toggle_off,
-                    R.string.pip_turn_on,
-                    0,
-                    Constants.Pip.CONTROL_STATE_OFF
-                )
-            ))
-
+            .setAspectRatio(Rational(16, 9))
             // Specify the portion of the screen that turns into the picture-in-picture mode.
             // This makes the transition animation smoother.
             .setSourceRectHint(visibleRect)
+            .setSeamlessResizeEnabled(false)
+            // Turn the screen into the picture-in-picture mode if it's hidden by the "Home" button.
+            .setAutoEnterEnabled(true)
 
         // The screen automatically turns into the picture-in-picture mode when it is hidden
         // by the "Home" button.
@@ -390,30 +392,5 @@ class MainActivity() : AppCompatActivity() {
 
     private fun minimize() {
         enterPictureInPictureMode(updatePictureInPictureParams())
-    }
-
-    private fun createRemoteAction(
-        @DrawableRes iconResId: Int,
-        @StringRes titleResId: Int,
-        requestCode: Int,
-        controlType: Int
-    ): RemoteAction {
-
-        val intent = Intent(this, MyReceiver::class.java).apply {
-            action = Constants.Pip.ACTION_PIP
-            putExtra(Constants.Pip.EXTRA_CONTROL_STATE, controlType)
-        }
-
-        return RemoteAction(
-            Icon.createWithResource(this, iconResId),
-            getString(titleResId),
-            getString(titleResId),
-            PendingIntent.getBroadcast(
-                this,
-                requestCode,
-                intent,
-                PendingIntent.FLAG_IMMUTABLE
-            )
-        )
     }
 }

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
@@ -18,9 +17,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Class25BASHW1"
-        tools:targetApi="31">
-        <receiver android:name=".MyReceiver"/>
+        android:theme="@style/Theme.Class25BASHW1">
         <activity
             android:name=".MainActivity"
             android:supportsPictureInPicture="true"
